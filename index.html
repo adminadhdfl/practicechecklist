@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychiatric Practice Digital Asset Wind-Down Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Neutral Slate & Emerald (Slate, Warm Stone, Emerald, Amber, Rose) -->
+    <!-- Application Structure Plan: A centralized, task-oriented wind-down management dashboard for the Virtual Assistant and Doctor. Stored state uses browser localStorage so progress persists automatically when deployed on static web hosts like GitHub Pages. Structured into 5 core interactive tabs: Asset Triage, Master Task Tracker, Copywriter & Templates, Compliance Calculator, and Analytics. -->
+    <!-- Visualization & Content Choices:
+        - Persistent Storage: JS localStorage auto-save on every task toggle, dropdown update, or text input change.
+        - Key Metrics & Progress: Real-time progress bar calculated dynamically from saved task states.
+        - Asset Triage Matrix: Interactive status dropdowns synced with local persistence.
+        - Master Task Checklist: Checkboxes with category filters and state persistence.
+        - Dynamic Templates: Reactive text generator with custom fields (Doc Name, Email, Phone) auto-saved to localStorage.
+        - Chart.js Visualizations: Bounded responsive Canvas charts reflecting live checklist progress.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 550px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 280px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 320px;
+            }
+        }
+        .tab-active {
+            border-bottom: 3px solid #0d9488;
+            color: #0f766e;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Top Header & Navigation -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">🩺</span>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">Practice Wind-Down Command Center</h1>
+                        <p class="text-xs text-slate-400">Digital Asset SOP & Compliance Management</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- LocalStorage Status Indicator -->
+                    <div id="save-indicator" class="hidden md:flex items-center space-x-1.5 bg-slate-800 px-3 py-1 rounded border border-slate-700 text-xs text-teal-400">
+                        <span>💾</span>
+                        <span>Progress Saved</span>
+                    </div>
+
+                    <button onclick="resetDashboardData()" title="Reset all saved progress" class="text-xs bg-slate-800 hover:bg-rose-900 text-slate-300 hover:text-rose-200 border border-slate-700 px-2.5 py-1.5 rounded transition">
+                        🔄 Reset Data
+                    </button>
+
+                    <div class="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-right">
+                        <span class="text-xs text-slate-400 block uppercase font-medium">Final Appointment</span>
+                        <span class="text-sm font-bold text-amber-400">October 16</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Navigation Tabs -->
+            <nav class="flex space-x-6 overflow-x-auto text-sm font-medium border-t border-slate-800 pt-1">
+                <button onclick="switchTab('triage')" id="tab-triage" class="py-2.5 px-1 tab-active transition-colors whitespace-nowrap">
+                    🏷️ Asset Triage
+                </button>
+                <button onclick="switchTab('tasks')" id="tab-tasks" class="py-2.5 px-1 text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+                    ✅ Master Task Tracker
+                </button>
+                <button onclick="switchTab('templates')" id="tab-templates" class="py-2.5 px-1 text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+                    📝 Copywriter & Templates
+                </button>
+                <button onclick="switchTab('compliance')" id="tab-compliance" class="py-2.5 px-1 text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+                    🔒 Medical Records & Retention
+                </button>
+                <button onclick="switchTab('analytics')" id="tab-analytics" class="py-2.5 px-1 text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+                    📊 Analytics & Status
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- Top Metrics & Quick Alerts Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-stone-500 uppercase">Phase Focus</p>
+                    <p class="text-lg font-bold text-slate-800">1. Immediate Takedown</p>
+                    <p class="text-xs text-rose-600 font-medium">Parasite SEO & Directories First</p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-lg">⚡</div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-stone-500 uppercase">Overall Progress</p>
+                    <p id="overall-progress-text" class="text-lg font-bold text-teal-700">0% Completed</p>
+                    <div class="w-32 bg-stone-200 rounded-full h-2 mt-1">
+                        <div id="overall-progress-bar" class="bg-teal-600 h-2 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-lg">📈</div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-stone-500 uppercase">Domain & Main Site</p>
+                    <p class="text-lg font-bold text-amber-600">WHOIS Triage</p>
+                    <p class="text-xs text-stone-500">Unresponsive developer protocol</p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-lg">🌐</div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-stone-500 uppercase">Patient Data Rule</p>
+                    <p class="text-lg font-bold text-indigo-700">Strict Isolation</p>
+                    <p class="text-xs text-stone-500">Do NOT migrate to new employer</p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg">🛡️</div>
+            </div>
+        </div>
+
+        <!-- TAB 1: ASSET TRIAGE CENTER -->
+        <section id="view-triage" class="space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-slate-800">Digital Asset Triage & Action Matrix</h2>
+                    <p class="text-sm text-stone-600 mt-1">
+                        Below is the specific tactical plan tailored for each digital property. Low-traffic and third-party paid directory assets are scheduled for immediate removal first.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Asset Card 1: Parasite SEO & Directory Listings -->
+                    <div class="border border-stone-200 rounded-xl p-5 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="bg-rose-100 text-rose-800 text-xs px-2.5 py-1 rounded-full font-bold">Phase 1: Immediate</span>
+                                <span class="text-xs font-semibold text-stone-500">Low Traffic / High Risk</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>🕷️</span> Parasite SEO & Paid Directories
+                            </h3>
+                            <p class="text-xs text-stone-600 mt-2">
+                                Psychology Today, Zocdoc, Healthgrades, WebMD, third-party SEO blogs.
+                            </p>
+                            <ul class="text-xs text-slate-700 mt-3 space-y-1.5 list-disc list-inside">
+                                <li><strong>Step 1:</strong> Log in and immediately <strong>cancel recurring subscriptions</strong>.</li>
+                                <li><strong>Step 2:</strong> Unpublish articles or request listing deactivation.</li>
+                                <li><strong>Step 3:</strong> Change status to "Not Accepting New Patients".</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between">
+                            <span class="text-xs font-medium text-stone-500">Current Status:</span>
+                            <select id="asset-select-parasite" onchange="updateAssetStatus('parasite', this.value)" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 font-semibold text-slate-700">
+                                <option value="Pending">Pending Action</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed / Canceled">Completed / Canceled</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Asset Card 2: Main Website & Hostinger Backup -->
+                    <div class="border border-stone-200 rounded-xl p-5 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold">Phase 2: Transition</span>
+                                <span class="text-xs font-semibold text-stone-500">Critical Access</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>💻</span> Main Website & Hostinger Domain
+                            </h3>
+                            <p class="text-xs text-stone-600 mt-2">
+                                Unresponsive developer on main site; backup site hosted on Hostinger.
+                            </p>
+                            <ul class="text-xs text-slate-700 mt-3 space-y-1.5 list-disc list-inside">
+                                <li>Run a <strong>WHOIS lookup</strong> to identify registrar & name servers.</li>
+                                <li>Contact registrar with LLC & Doctor ID to reclaim administrative control.</li>
+                                <li>Add practice closure banner across site; disable intake/booking forms.</li>
+                                <li><strong>Post Oct 16:</strong> Replace site on Hostinger with single-page "Closed Practice Notice". Auto-renew domain for 2-3 years.</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between">
+                            <span class="text-xs font-medium text-stone-500">Current Status:</span>
+                            <select id="asset-select-website" onchange="updateAssetStatus('website', this.value)" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 font-semibold text-slate-700">
+                                <option value="Pending">WHOIS Lookup Pending</option>
+                                <option value="In Progress">Developer Escalation</option>
+                                <option value="Hostinger Page Deployed">Hostinger Page Deployed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Asset Card 3: Google Business Profile (GBP) -->
+                    <div class="border border-stone-200 rounded-xl p-5 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="bg-teal-100 text-teal-800 text-xs px-2.5 py-1 rounded-full font-bold">Phase 2 & 3</span>
+                                <span class="text-xs font-semibold text-stone-500">High Patient Search</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>📍</span> Google Business Profile (GBP)
+                            </h3>
+                            <p class="text-xs text-stone-600 mt-2">
+                                Primary source for organic searchers seeking clinic operational hours.
+                            </p>
+                            <ul class="text-xs text-slate-700 mt-3 space-y-1.5 list-disc list-inside">
+                                <li><strong>Before Oct 16:</strong> Publish a Google Post announcing Oct 16 practice closure.</li>
+                                <li><strong>On Oct 17:</strong> Mark profile as <strong>"Permanently Closed"</strong> in settings.</li>
+                                <li><strong>DO NOT DELETE:</strong> Deleting allows Google to create an unmanaged duplicate listing.</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between">
+                            <span class="text-xs font-medium text-stone-500">Current Status:</span>
+                            <select id="asset-select-gbp" onchange="updateAssetStatus('gbp', this.value)" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 font-semibold text-slate-700">
+                                <option value="Pending">Active Announcement</option>
+                                <option value="In Progress">Closure Post Live</option>
+                                <option value="Marked Permanently Closed">Marked Permanently Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Asset Card 4: Doctor Social Media (FB / IG) -->
+                    <div class="border border-stone-200 rounded-xl p-5 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="bg-indigo-100 text-indigo-800 text-xs px-2.5 py-1 rounded-full font-bold">Brand Pivot</span>
+                                <span class="text-xs font-semibold text-stone-500">Named after Doctor</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>📱</span> Facebook & Instagram (Dr.'s Name)
+                            </h3>
+                            <p class="text-xs text-stone-600 mt-2">
+                                Accounts are named after the doctor with low-to-moderate activity.
+                            </p>
+                            <ul class="text-xs text-slate-700 mt-3 space-y-1.5 list-disc list-inside">
+                                <li>Keep profiles for personal/professional branding under new employment.</li>
+                                <li>Remove clinic contact phone & booking links from bio.</li>
+                                <li>Add pinned post regarding private practice closure & records request email.</li>
+                                <li>Disable DMs or turn on automated "Unmonitored Channel" auto-responder.</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between">
+                            <span class="text-xs font-medium text-stone-500">Current Status:</span>
+                            <select id="asset-select-social" onchange="updateAssetStatus('social', this.value)" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 font-semibold text-slate-700">
+                                <option value="Pending">Bio Pending Update</option>
+                                <option value="In Progress">Auto-Responder Set</option>
+                                <option value="Profiles Rebranded">Profiles Rebranded</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Asset Card 5: EHR, Chart Notes & Records -->
+                    <div class="border border-stone-200 rounded-xl p-5 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="bg-rose-100 text-rose-800 text-xs px-2.5 py-1 rounded-full font-bold">HIPAA Critical</span>
+                                <span class="text-xs font-semibold text-stone-500">7-10 Year Retention</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>📑</span> EHR System & Chart Notes
+                            </h3>
+                            <p class="text-xs text-stone-600 mt-2">
+                                Legacy EHR chart notes managed by VA for past private practice patients.
+                            </p>
+                            <ul class="text-xs text-slate-700 mt-3 space-y-1.5 list-disc list-inside">
+                                <li>Export all patient demographics, clinical notes, and audit logs into secure encrypted backups.</li>
+                                <li>Maintain strict data isolation from doctor's new employer system.</li>
+                                <li>Designate official Custodian of Records & HIPAA compliant storage.</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between">
+                            <span class="text-xs font-medium text-stone-500">Current Status:</span>
+                            <select id="asset-select-ehr" onchange="updateAssetStatus('ehr', this.value)" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 font-semibold text-slate-700">
+                                <option value="Pending">EHR Active</option>
+                                <option value="In Progress">Exporting Charts</option>
+                                <option value="Archived & Separated">Archived & Separated</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Asset Card 6: Communication Hub & Notifications -->
+                    <div class="border border-stone-200 rounded-xl p-5 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">Patient Continuity</span>
+                                <span class="text-xs font-semibold text-stone-500">Active Outreach</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>📧</span> Patient Notices & Auto-Responders
+                            </h3>
+                            <p class="text-xs text-stone-600 mt-2">
+                                Patient notifications, email signatures, and emergency line redirects.
+                            </p>
+                            <ul class="text-xs text-slate-700 mt-3 space-y-1.5 list-disc list-inside">
+                                <li>Update clinic voicemail greeting with closure date and 988 Crisis Line.</li>
+                                <li>Set up automated email auto-responder with medical record request forms.</li>
+                                <li>Send direct letter/email notification to all active patients.</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-stone-200 flex items-center justify-between">
+                            <span class="text-xs font-medium text-stone-500">Current Status:</span>
+                            <select id="asset-select-comms" onchange="updateAssetStatus('comms', this.value)" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 font-semibold text-slate-700">
+                                <option value="Pending">Notices Pending</option>
+                                <option value="In Progress">Outreach Active</option>
+                                <option value="Auto-Responders Live">Auto-Responders Live</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MASTER TASK CHECKLIST -->
+        <section id="view-tasks" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Master Wind-Down Action Checklist</h2>
+                        <p class="text-sm text-stone-600 mt-1">
+                            Interactive checklist for the Lead VA. Check off items as you complete them. Your progress is automatically saved to your browser so you won't lose track on GitHub Pages.
+                        </p>
+                    </div>
+                    <!-- Task Filters -->
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="filterTasks('all')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-white hover:bg-slate-700">All Tasks</button>
+                        <button onclick="filterTasks('immediate')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-100 text-rose-800 hover:bg-rose-200">Phase 1 (Immediate)</button>
+                        <button onclick="filterTasks('pre')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200">Phase 2 (Pre-Oct 16)</button>
+                        <button onclick="filterTasks('post')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Phase 3 (Post-Oct 16)</button>
+                    </div>
+                </div>
+
+                <!-- Task List Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-stone-200 text-xs font-bold uppercase text-stone-500 bg-stone-50">
+                                <th class="p-3 w-10">Done</th>
+                                <th class="p-3">Task Description</th>
+                                <th class="p-3">Asset / Channel</th>
+                                <th class="p-3">Phase / Target</th>
+                                <th class="p-3">Priority</th>
+                                <th class="p-3">Assigned To</th>
+                            </tr>
+                        </thead>
+                        <tbody id="task-table-body" class="divide-y divide-stone-200 text-sm">
+                            <!-- JS dynamically renders tasks here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: COPYWRITER & TEMPLATES -->
+        <section id="view-templates" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-slate-800">Dynamic Copywriter & Notice Generator</h2>
+                    <p class="text-sm text-stone-600 mt-1">
+                        Fill in your custom doctor and practice details below to auto-generate ready-to-use copy for your website banner, social media auto-responders, Google Posts, and directory cancellation emails. (Inputs auto-save).
+                    </p>
+                </div>
+
+                <!-- Input Controls -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-200 mb-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Doctor's Name</label>
+                        <input type="text" id="cfg-doc-name" value="Dr. Jane Doe, MD" oninput="onInputConfigChange()" class="w-full p-2 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Records Request Email</label>
+                        <input type="text" id="cfg-email" value="records@janedoemd.com" oninput="onInputConfigChange()" class="w-full p-2 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contact Phone</label>
+                        <input type="text" id="cfg-phone" value="(555) 019-2834" oninput="onInputConfigChange()" class="w-full p-2 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- Template Box 1 -->
+                    <div class="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-bold text-slate-800 text-sm">1. Hostinger Single-Page Notice (Website)</h3>
+                                <button onclick="copyToClipboard('tpl-website')" class="text-xs bg-teal-600 text-white px-2.5 py-1 rounded hover:bg-teal-700 font-semibold">Copy Copy</button>
+                            </div>
+                            <pre id="tpl-website" class="bg-white p-3 rounded border border-stone-200 text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed h-48 overflow-y-auto"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Template Box 2 -->
+                    <div class="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-bold text-slate-800 text-sm">2. Social Media Bio & Auto-Responder (FB/IG)</h3>
+                                <button onclick="copyToClipboard('tpl-social')" class="text-xs bg-teal-600 text-white px-2.5 py-1 rounded hover:bg-teal-700 font-semibold">Copy Copy</button>
+                            </div>
+                            <pre id="tpl-social" class="bg-white p-3 rounded border border-stone-200 text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed h-48 overflow-y-auto"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Template Box 3 -->
+                    <div class="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-bold text-slate-800 text-sm">3. Google Business Profile Closure Post</h3>
+                                <button onclick="copyToClipboard('tpl-gbp')" class="text-xs bg-teal-600 text-white px-2.5 py-1 rounded hover:bg-teal-700 font-semibold">Copy Copy</button>
+                            </div>
+                            <pre id="tpl-gbp" class="bg-white p-3 rounded border border-stone-200 text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed h-48 overflow-y-auto"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Template Box 4 -->
+                    <div class="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-bold text-slate-800 text-sm">4. Directory Subscription Cancellation Request Email</h3>
+                                <button onclick="copyToClipboard('tpl-directory')" class="text-xs bg-teal-600 text-white px-2.5 py-1 rounded hover:bg-teal-700 font-semibold">Copy Copy</button>
+                            </div>
+                            <pre id="tpl-directory" class="bg-white p-3 rounded border border-stone-200 text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed h-48 overflow-y-auto"></pre>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: COMPLIANCE & MEDICAL RECORDS -->
+        <section id="view-compliance" class="space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-slate-800">Medical Record Retention & HIPAA Rules</h2>
+                    <p class="text-sm text-stone-600 mt-1">
+                        As a Virtual Assistant managing chart notes, ensuring compliance during practice closure is critical. Use this retention calculator and compliance checklist to avoid legal exposure.
+                    </p>
+                </div>
+
+                <!-- Interactive Calculator Widget -->
+                <div class="bg-indigo-50 border border-indigo-200 p-5 rounded-xl mb-6">
+                    <h3 class="font-bold text-indigo-900 text-base mb-2">🧮 Record Retention Calculator</h3>
+                    <p class="text-xs text-indigo-700 mb-4">Select patient parameters to determine statutory record retention length:</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Patient Age Group</label>
+                            <select id="calc-age" onchange="calculateRetention()" class="w-full p-2 text-xs border border-indigo-300 rounded bg-white font-medium">
+                                <option value="adult">Adult Patient (18+)</option>
+                                <option value="minor">Minor Patient (Under 18)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">State General Rule Standard</label>
+                            <select id="calc-state" onchange="calculateRetention()" class="w-full p-2 text-xs border border-indigo-300 rounded bg-white font-medium">
+                                <option value="7">7 Years Standard</option>
+                                <option value="10">10 Years Standard (e.g., Medicare/Strict States)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Last Treatment Year</label>
+                            <input type="number" id="calc-year" value="2026" oninput="calculateRetention()" class="w-full p-2 text-xs border border-indigo-300 rounded bg-white font-medium">
+                        </div>
+                    </div>
+
+                    <div id="retention-result" class="mt-4 p-3 bg-white border border-indigo-300 rounded-lg text-xs font-semibold text-indigo-950 flex items-center justify-between">
+                        <span>Mandatory Retention Until: <strong class="text-indigo-700 text-sm">2033 (7 Years minimum)</strong></span>
+                        <span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs">HIPAA Compliant</span>
+                    </div>
+                </div>
+
+                <!-- Compliance Checklist Rules -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-stone-200 p-4 rounded-xl bg-stone-50">
+                        <h4 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2">
+                            <span>🛑</span> Data Isolation Protocol
+                        </h4>
+                        <ul class="text-xs text-stone-700 space-y-2 list-disc list-inside">
+                            <li><strong>NO Mass Migration:</strong> Private practice patient records CANNOT be imported into the doctor's new employed practice EHR without individually signed HIPAA authorizations.</li>
+                            <li><strong>EHR Export Format:</strong> Export charts as searchable PDFs/CCDA files including treatment plans, progress notes, billing history, and audit trails.</li>
+                            <li><strong>Vault Storage:</strong> Store exported charts in an encrypted HIPAA-compliant cloud storage (e.g., Encrypted AWS S3, HIPAA-compliant Google Workspace with BAA).</li>
+                        </ul>
+                    </div>
+
+                    <div class="border border-stone-200 p-4 rounded-xl bg-stone-50">
+                        <h4 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2">
+                            <span>📞</span> Custodian of Records Setup
+                        </h4>
+                        <ul class="text-xs text-stone-700 space-y-2 list-disc list-inside">
+                            <li><strong>Designation:</strong> Formally name a Custodian of Records (or record archive service) responsible for answering future legal/subpoena requests.</li>
+                            <li><strong>Contact Information:</strong> Ensure the records email and phone number remain active for at least 3 years post-closure.</li>
+                            <li><strong>Medical Board Notification:</strong> Check state medical board requirements regarding submitting an official practice closure affidavit.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: ANALYTICS & VISUAL STATUS -->
+        <section id="view-analytics" class="space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-slate-800">Wind-Down Progress Analytics</h2>
+                    <p class="text-sm text-stone-600 mt-1">
+                        Visual oversight of task completion by phase and risk profile across all digital properties.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Chart 1: Task Completion by Phase -->
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 flex flex-col items-center">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3">Task Completion by Phase</h3>
+                        <div class="chart-container">
+                            <canvas id="chartPhaseProgress"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2: Asset Status Breakdown -->
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 flex flex-col items-center">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3">Asset Triage Status Overview</h3>
+                        <div class="chart-container">
+                            <canvas id="chartAssetStatus"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-4 text-center text-xs border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4">
+            Practice Digital Asset Wind-Down SOP • Designed for Lead VA & Medical Practice Management • Progress automatically saved via browser LocalStorage
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        const STORAGE_KEY = 'psych_practice_winddown_state_v1';
+
+        // Default State Definition
+        const defaultTasks = [
+            { id: 1, text: "Unpublish Parasite SEO blog articles & landing pages", asset: "Parasite SEO", phase: "immediate", priority: "High", assigned: "VA", done: false },
+            { id: 2, text: "Cancel recurring directory subscriptions (Psychology Today, Zocdoc)", asset: "Directories", phase: "immediate", priority: "High", assigned: "VA / Doc", done: false },
+            { id: 3, text: "Perform WHOIS lookup on main website domain", asset: "Main Website", phase: "immediate", priority: "High", assigned: "VA", done: false },
+            { id: 4, text: "Post closure notice banner on website & disable booking forms", asset: "Main Website", phase: "pre", priority: "High", assigned: "VA", done: false },
+            { id: 5, text: "Publish Google Business Profile update post regarding Oct 16 closure", asset: "GBP", phase: "pre", priority: "Medium", assigned: "VA", done: false },
+            { id: 6, text: "Update Social Media Bios (FB/IG) to state practice closure date", asset: "Social Media", phase: "pre", priority: "Medium", assigned: "VA", done: false },
+            { id: 7, text: "Configure automated away DM auto-responder on Facebook & Instagram", asset: "Social Media", phase: "pre", priority: "Medium", assigned: "VA", done: false },
+            { id: 8, text: "Conduct final patient appointments", asset: "Practice", phase: "pre", priority: "High", assigned: "Doctor", done: false },
+            { id: 9, text: "Mark Google Business Profile as 'Permanently Closed'", asset: "GBP", phase: "post", priority: "High", assigned: "VA", done: false },
+            { id: 10, text: "Deploy single-page closure landing page on Hostinger", asset: "Hostinger Site", phase: "post", priority: "High", assigned: "VA", done: false },
+            { id: 11, text: "Export complete EHR chart notes & patient demographics to encrypted backup", asset: "EHR / Charts", phase: "post", priority: "Critical", assigned: "VA / Doc", done: false },
+            { id: 12, text: "Auto-renew main domain registration for 2-3 years", asset: "Domain Registrar", phase: "post", priority: "Medium", assigned: "VA", done: false }
+        ];
+
+        const defaultAssetStatuses = {
+            parasite: "Pending",
+            website: "Pending",
+            gbp: "Pending",
+            social: "Pending",
+            ehr: "Pending",
+            comms: "Pending"
+        };
+
+        // Active State variables
+        let tasks = JSON.parse(JSON.stringify(defaultTasks));
+        let assetStatuses = { ...defaultAssetStatuses };
+        let activeFilter = 'all';
+        let chart1Instance = null;
+        let chart2Instance = null;
+
+        // On Page Load
+        document.addEventListener("DOMContentLoaded", () => {
+            loadStateFromLocalStorage();
+            renderTasks();
+            renderTemplates();
+            calculateRetention();
+            initCharts();
+            updateProgressMetrics();
+        });
+
+        // Save State to Browser LocalStorage
+        function saveStateToLocalStorage() {
+            const dataToSave = {
+                tasks: tasks,
+                assetStatuses: assetStatuses,
+                config: {
+                    docName: document.getElementById('cfg-doc-name')?.value || '',
+                    email: document.getElementById('cfg-email')?.value || '',
+                    phone: document.getElementById('cfg-phone')?.value || ''
+                },
+                calculator: {
+                    age: document.getElementById('calc-age')?.value || 'adult',
+                    state: document.getElementById('calc-state')?.value || '7',
+                    year: document.getElementById('calc-year')?.value || '2026'
+                }
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+            
+            // Show temporary saved badge
+            const ind = document.getElementById('save-indicator');
+            if (ind) {
+                ind.classList.remove('hidden');
+                setTimeout(() => {
+                    // keep visible or subtle fade
+                }, 1000);
+            }
+        }
+
+        // Load State from Browser LocalStorage
+        function loadStateFromLocalStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.tasks) tasks = parsed.tasks;
+                if (parsed.assetStatuses) {
+                    assetStatuses = parsed.assetStatuses;
+                    // Update DOM dropdown values
+                    for (const key in assetStatuses) {
+                        const elem = document.getElementById(`asset-select-${key}`);
+                        if (elem) elem.value = assetStatuses[key];
+                    }
+                }
+                if (parsed.config) {
+                    if (parsed.config.docName) document.getElementById('cfg-doc-name').value = parsed.config.docName;
+                    if (parsed.config.email) document.getElementById('cfg-email').value = parsed.config.email;
+                    if (parsed.config.phone) document.getElementById('cfg-phone').value = parsed.config.phone;
+                }
+                if (parsed.calculator) {
+                    if (parsed.calculator.age) document.getElementById('calc-age').value = parsed.calculator.age;
+                    if (parsed.calculator.state) document.getElementById('calc-state').value = parsed.calculator.state;
+                    if (parsed.calculator.year) document.getElementById('calc-year').value = parsed.calculator.year;
+                }
+                const ind = document.getElementById('save-indicator');
+                if (ind) ind.classList.remove('hidden');
+            } catch (e) {
+                console.error("Could not parse saved dashboard state from localStorage", e);
+            }
+        }
+
+        // Reset Dashboard Data
+        function resetDashboardData() {
+            if (confirm("Are you sure you want to reset all task completions, input templates, and status dropdowns to default?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                tasks = JSON.parse(JSON.stringify(defaultTasks));
+                assetStatuses = { ...defaultAssetStatuses };
+                
+                document.getElementById('cfg-doc-name').value = "Dr. Jane Doe, MD";
+                document.getElementById('cfg-email').value = "records@janedoemd.com";
+                document.getElementById('cfg-phone').value = "(555) 019-2834";
+                document.getElementById('calc-age').value = "adult";
+                document.getElementById('calc-state').value = "7";
+                document.getElementById('calc-year').value = "2026";
+
+                for (const key in assetStatuses) {
+                    const elem = document.getElementById(`asset-select-${key}`);
+                    if (elem) elem.value = assetStatuses[key];
+                }
+
+                renderTasks();
+                renderTemplates();
+                calculateRetention();
+                updateProgressMetrics();
+                
+                const ind = document.getElementById('save-indicator');
+                if (ind) ind.classList.add('hidden');
+                alert("Dashboard progress has been reset!");
+            }
+        }
+
+        // Navigation Switcher
+        function switchTab(tabId) {
+            const views = ['triage', 'tasks', 'templates', 'compliance', 'analytics'];
+            views.forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`tab-${v}`).classList.remove('tab-active');
+                document.getElementById(`tab-${v}`).classList.add('text-slate-400');
+            });
+
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            activeTab.classList.add('tab-active');
+            activeTab.classList.remove('text-slate-400');
+
+            if (tabId === 'analytics') {
+                updateCharts();
+            }
+        }
+
+        // Render Task Table
+        function renderTasks() {
+            const tbody = document.getElementById('task-table-body');
+            tbody.innerHTML = '';
+
+            const filtered = tasks.filter(t => {
+                if (activeFilter === 'all') return true;
+                return t.phase === activeFilter;
+            });
+
+            filtered.forEach(task => {
+                const tr = document.createElement('tr');
+                tr.className = task.done ? "bg-stone-50 text-stone-400 line-through" : "hover:bg-stone-50";
+
+                let phaseBadge = '';
+                if (task.phase === 'immediate') phaseBadge = '<span class="bg-rose-100 text-rose-800 text-xs px-2 py-0.5 rounded font-bold">Phase 1 (Immediate)</span>';
+                else if (task.phase === 'pre') phaseBadge = '<span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">Phase 2 (Pre-Oct 16)</span>';
+                else phaseBadge = '<span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">Phase 3 (Post-Oct 16)</span>';
+
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask(${task.id})" class="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 cursor-pointer">
+                    </td>
+                    <td class="p-3 font-medium">${task.text}</td>
+                    <td class="p-3 text-xs text-stone-500 font-semibold">${task.asset}</td>
+                    <td class="p-3">${phaseBadge}</td>
+                    <td class="p-3 text-xs font-bold ${task.priority === 'Critical' ? 'text-rose-600' : task.priority === 'High' ? 'text-amber-600' : 'text-slate-600'}">${task.priority}</td>
+                    <td class="p-3 text-xs text-stone-500 font-medium">${task.assigned}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterTasks(phase) {
+            activeFilter = phase;
+            renderTasks();
+        }
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.done = !task.done;
+                renderTasks();
+                updateProgressMetrics();
+                saveStateToLocalStorage();
+            }
+        }
+
+        function updateAssetStatus(key, val) {
+            assetStatuses[key] = val;
+            updateProgressMetrics();
+            saveStateToLocalStorage();
+        }
+
+        function updateProgressMetrics() {
+            const completedTasks = tasks.filter(t => t.done).length;
+            const totalTasks = tasks.length;
+            const pct = Math.round((completedTasks / totalTasks) * 100);
+
+            document.getElementById('overall-progress-text').innerText = `${pct}% Completed`;
+            document.getElementById('overall-progress-bar').style.width = `${pct}%`;
+
+            if (chart1Instance) updateCharts();
+        }
+
+        function onInputConfigChange() {
+            renderTemplates();
+            saveStateToLocalStorage();
+        }
+
+        // Render Communication Templates
+        function renderTemplates() {
+            const name = document.getElementById('cfg-doc-name').value || "Dr. Jane Doe, MD";
+            const email = document.getElementById('cfg-email').value || "records@janedoemd.com";
+            const phone = document.getElementById('cfg-phone').value || "(555) 019-2834";
+
+            document.getElementById('tpl-website').innerText = 
+`IMPORTANT NOTICE: PRACTICE CLOSURE
+
+Effective October 16, ${name} has officially closed private practice operations.
+
+MEDICAL RECORDS REQUESTS:
+In compliance with HIPAA and state medical board guidelines, your psychiatric medical records are securely preserved.
+To request record transfers or copies:
+• Email Custodian of Records: ${email}
+• Phone: ${phone}
+
+CRISIS RESOURCES:
+If you are experiencing a mental health emergency, please call or text 988 (Suicide & Crisis Lifeline) or go to the nearest emergency room.`;
+
+            document.getElementById('tpl-social').innerText = 
+`PROFILE BIO:
+${name} — Psychiatrist. Former private practice closed as of Oct 16. For record requests, email: ${email}.
+
+AUTO-RESPONDER AWAY MESSAGE:
+Thank you for reaching out to ${name}. 
+
+Please note that this private practice closed permanently on October 16. This account is no longer monitored for appointment scheduling, medical advice, or clinical emergencies.
+
+- For medical record requests, please email: ${email}
+- If you are experiencing a mental health crisis, call/text 988 or go to the nearest emergency room.`;
+
+            document.getElementById('tpl-gbp').innerText = 
+`ANNOUNCEMENT: PRACTICE CLOSING OCTOBER 16
+
+${name}'s private practice will cease all clinical appointments effective October 16. 
+
+Active patients seeking medical record releases or care transition details, please contact our records desk at ${email} or call ${phone}. 
+
+After October 16, this profile will be marked permanently closed. We thank our patients for their trust over the years.`;
+
+            document.getElementById('tpl-directory').innerText = 
+`Subject: Immediate Subscription Cancellation & Listing Removal - ${name}
+
+Dear Support Team,
+
+Please accept this email as formal authorization to CANCEL our recurring subscription and deactivate/remove the listing for ${name} immediately.
+
+Practice Name / Doctor: ${name}
+Account Email: ${email}
+Effective Cancellation Date: Immediate
+
+Please confirm cancellation of recurring billing via return email.
+
+Thank you,
+Lead Administrative Assistant`;
+        }
+
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Copied template to clipboard!");
+            });
+        }
+
+        // Compliance Retention Calculator
+        function calculateRetention() {
+            const ageGroup = document.getElementById('calc-age').value;
+            const stateRule = parseInt(document.getElementById('calc-state').value);
+            const year = parseInt(document.getElementById('calc-year').value) || 2026;
+
+            let finalYear = year + stateRule;
+            let note = "";
+
+            if (ageGroup === 'minor') {
+                finalYear = year + Math.max(stateRule, 10); // Standard rule extension for minors
+                note = "Minors require retention until age of majority (18/21) + statutory years. Calculated extended safe archive target.";
+            } else {
+                note = `Standard statutory adult retention target (${stateRule} years from last date of service).`;
+            }
+
+            document.getElementById('retention-result').innerHTML = `
+                <div>
+                    <span class="block">Mandatory Archive Until Year: <strong class="text-indigo-700 text-sm">${finalYear}</strong></span>
+                    <span class="text-xs text-stone-500 font-normal">${note}</span>
+                </div>
+                <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">HIPAA Compliant Target</span>
+            `;
+
+            saveStateToLocalStorage();
+        }
+
+        // Chart.js Visualizations
+        function initCharts() {
+            // Chart 1: Phase Progress
+            const ctx1 = document.getElementById('chartPhaseProgress').getContext('2d');
+            chart1Instance = new Chart(ctx1, {
+                type: 'bar',
+                data: getPhaseChartData(),
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    }
+                }
+            });
+
+            // Chart 2: Asset Status Breakdown
+            const ctx2 = document.getElementById('chartAssetStatus').getContext('2d');
+            chart2Instance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: getAssetChartData(),
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function getPhaseChartData() {
+            const immDone = tasks.filter(t => t.phase === 'immediate' && t.done).length;
+            const immTotal = tasks.filter(t => t.phase === 'immediate').length;
+
+            const preDone = tasks.filter(t => t.phase === 'pre' && t.done).length;
+            const preTotal = tasks.filter(t => t.phase === 'pre').length;
+
+            const postDone = tasks.filter(t => t.phase === 'post' && t.done).length;
+            const postTotal = tasks.filter(t => t.phase === 'post').length;
+
+            return {
+                labels: ['Phase 1 (Immediate)', 'Phase 2 (Pre-Oct 16)', 'Phase 3 (Post-Oct 16)'],
+                datasets: [
+                    {
+                        label: 'Completed Tasks',
+                        data: [immDone, preDone, postDone],
+                        backgroundColor: '#0d9488'
+                    },
+                    {
+                        label: 'Remaining Tasks',
+                        data: [immTotal - immDone, preTotal - preDone, postTotal - postDone],
+                        backgroundColor: '#e2e8f0'
+                    }
+                ]
+            };
+        }
+
+        function getAssetChartData() {
+            const statuses = Object.values(assetStatuses);
+            const pending = statuses.filter(s => s === 'Pending' || s.includes('Pending')).length;
+            const progress = statuses.filter(s => s.includes('In Progress') || s.includes('Active') || s.includes('Escalation')).length;
+            const done = statuses.filter(s => s.includes('Completed') || s.includes('Rebranded') || s.includes('Closed') || s.includes('Deployed') || s.includes('Archived') || s.includes('Live')).length;
+
+            return {
+                labels: ['Pending Action', 'In Progress', 'Completed / Closed'],
+                datasets: [{
+                    data: [pending, progress, done],
+                    backgroundColor: ['#f43f5e', '#f59e0b', '#10b981']
+                }]
+            };
+        }
+
+        function updateCharts() {
+            if (chart1Instance && chart2Instance) {
+                chart1Instance.data = getPhaseChartData();
+                chart1Instance.update();
+
+                chart2Instance.data = getAssetChartData();
+                chart2Instance.update();
+            }
+        }
+    </script>
+</body>
+</html>
